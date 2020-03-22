@@ -47,16 +47,19 @@ def inverseReinfLearning1(A,B,Qtrue,N):
     pass
 
 
-def inverseReinfLearning(A,B,Qtrue,N, method = 'Lyap', debugMode = False):
+def inverseReinfLearning(A, B, Qtrue, N, a=1, method = 'Ricc', debugMode = False):
     Popt, Eopt, Kopt = mtl.care(A, B, Qtrue, 1);    Aopt = A - B * Kopt
-    Q = Qtrue*0.01;    P, E, K = mtl.care(A, B, Q, 1)
+    Q = Qtrue*1.5;    P, E, K = mtl.care(A, B, Q, 1)
     errorP = [];    errorP.append(la.norm(P - Popt))
     errorQ = [];    errorQ.append(la.norm(Q - Qtrue))
     errorK = [];    errorK.append(la.norm(K - Kopt))
+    Qi = None
 
     for i in range(N):
-        '''  -(      (P Aopt) +       (Aopt'             P) +              (P B B'            P) '''
-        Qi = -(np.dot(P,Aopt) + np.dot(Aopt.transpose(), P) + la.multi_dot([P,B,B.transpose(),P]))
+        '''         -(      (P Aopt)  +       (Aopt'             P) +              (P  B  B'             P) '''
+        target_Qi = -(np.dot(P, Aopt) + np.dot(Aopt.transpose(), P) + la.multi_dot([P, B, B.transpose(), P]))
+        Qi = ((1-a**2)**0.5)*Qi + ((a ** 2)**0.5) * target_Qi if Qi is not None else target_Qi
+
         Qi = 0.5 * (Qi + Qi.transpose()); assert (not debugMode) or ((la.eig(Qi)[0]) > 0).min(), 'Qi iterate is not positive definite!'
 
         if method == 'Lyap':
@@ -69,7 +72,6 @@ def inverseReinfLearning(A,B,Qtrue,N, method = 'Lyap', debugMode = False):
             pass
 
         errorP.append(la.norm(P - Popt)); errorK.append(la.norm(K - Kopt)); errorQ.append(la.norm(Qi - Qtrue))
-
 
     plt.plot(errorP, 'o', label=r'$||P-\mathcal{P}||_F$'); plt.plot(errorK, 'o', label=r'$||K-\mathcal{K}||_F$'); plt.plot(errorQ, 'o', label=r'$||Q-\mathcal{Q}||_F$')
     plt.legend(ncol=3, loc='upper right');    plt.show()
@@ -92,7 +94,7 @@ if __name__== "__main__":
 
     #newtonKleinman(A, B, Q, K0, 10)
     #inverseReinfLearning1(A, B, Q, 10)
-    inverseReinfLearning(A, B, Q, 10, 'Ricc', debugMode=True)
+    inverseReinfLearning(A, B, Q, 50, method='Ricc', debugMode=True)
     #inverseReinfLearning_Lyap1(A,B,Q,50)
 
     print('Main finished')
