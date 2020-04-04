@@ -4,8 +4,10 @@ import numpy as np
 import numpy.linalg as la
 import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
-#from matplotlib import rc; rc('text', usetex=True)
+from matplotlib import rc; rc('xtick', labelsize=20);  rc('ytick', labelsize=20) #rc('text', usetex=True)
 import pandas as pd
+
+plt.rcParams.update({'font.size': 22})
 
 
 def newtonKleinman(A,B,Q,K, N):
@@ -47,45 +49,59 @@ def inverseReinfLearning1(A,B,Qtrue,N):
     pass
 
 
-def inverseReinfLearning(A, B, Qtrue, N, a=1, method = 'Ricc', debugMode = False):
+def inverseReinfLearning(A, B, Qtrue, N, p=None, debugMode = False):
     Popt, Eopt, Kopt = mtl.care(A, B, Qtrue, 1);    Aopt = A - B * Kopt
-    Q = Qtrue*1.5;    P, E, K = mtl.care(A, B, Q, 1)
-    errorP = [];    errorP.append(la.norm(P - Popt))
-    errorQ = [];    errorQ.append(la.norm(Q - Qtrue))
-    errorK = [];    errorK.append(la.norm(K - Kopt))
+    Q = Qtrue*1.2 +16*(1-0.5)*np.random.rand(Qtrue.shape[0],Qtrue.shape[1]); Q = 0.5*(Q+Q.transpose())
+    print(Q)
+    P, E, K = mtl.care(A, B, Q, 1)
+    errorP = [];    errorP.append(la.norm(P - Popt));    errorQ = [];    errorQ.append(la.norm(Q - Qtrue));    errorK = [];    errorK.append(la.norm(K - Kopt))
     Qi = None
 
     for i in range(N):
-        '''         -(      (P Aopt)  +       (Aopt'             P) +              (P  B  B'             P) '''
+        print(Qi)
+        '''         -(      (P Aopt)  +       (Aopt'             P) +             ( P  B  B'             P )) '''
         target_Qi = -(np.dot(P, Aopt) + np.dot(Aopt.transpose(), P) + la.multi_dot([P, B, B.transpose(), P]))
-        Qi = ((1-a**2)**0.5)*Qi + ((a ** 2)**0.5) * target_Qi if Qi is not None else target_Qi
+        Qi = ((1-p['alpha']**2)**0.5)*Qi + ((p['alpha'] ** 2)**0.5) * target_Qi if Qi is not None else target_Qi
+        Qi = 0.5 * (Qi + Qi.transpose()) if not p['isQDiagonal'] else np.multiply(0.5 * (Qi + Qi.transpose()), np.eye(Qi.shape[0]))
+        assert (not debugMode) or ((la.eig(Qi)[0]) > 0).min(), 'Qi iterate is not positive definite!'
 
-        Qi = 0.5 * (Qi + Qi.transpose()); assert (not debugMode) or ((la.eig(Qi)[0]) > 0).min(), 'Qi iterate is not positive definite!'
-
-        if method == 'Lyap':
+        if p['updateP'] == 'Lyap':
             Qlyap = Qi - la.multi_dot([P,B,B.transpose(),P])
-            Qlyap = 0.5 * (Qlyap + Qlyap.transpose()); assert (not debugMode) or ((la.eig(Qlyap)[0])>0).min(), 'Qlyap iterate is not positive definite!'
+            Qlyap = 0.5 * (Qlyap + Qlyap.transpose())
+            assert (not debugMode) or ((la.eig(Qlyap)[0])>0).min(), 'Qlyap iterate is not positive definite!'
             P = mtl.lyap(A.transpose(), Qlyap); assert (not debugMode) or ((la.eig(P)[0]) > 0).min(), 'P iterate is not positive definite!'
             pass
-        elif method == 'Ricc':
+        elif p['updateP'] == 'Ricc':
             P,E,K = mtl.care(A, B, Qi); assert (not debugMode) or ((la.eig(P)[0]) > 0).min(), 'P iterate is not positive definite!'
             pass
 
         errorP.append(la.norm(P - Popt)); errorK.append(la.norm(K - Kopt)); errorQ.append(la.norm(Qi - Qtrue))
 
-    plt.plot(errorP, 'o', label=r'$||P-\mathcal{P}||_F$'); plt.plot(errorK, 'o', label=r'$||K-\mathcal{K}||_F$'); plt.plot(errorQ, 'o', label=r'$||Q-\mathcal{Q}||_F$')
-    plt.legend(ncol=3, loc='upper right');    plt.show()
+    plt.plot(errorP, 'o', label=r'$||P-\mathcal{P}||_F$', markersize=12); plt.plot(errorK, 'o', label=r'$||K-\mathcal{K}||_F$', markersize=12); plt.plot(errorQ, 'o', label=r'$||Q-\mathcal{Q}||_F$', markersize=12)
+    plt.xlabel('', fontsize=20)
+    plt.legend(ncol=2, loc='upper right', prop={'size': 30});    plt.show()
     pass
-
 
 
 if __name__== "__main__":
     print('Main executed')
-    A = np.array([[-1,  2],[2.2,  1.7]]);     A1 = np.array([[-1,  2],[2.2,  1.7]])
-    #eigs = la.eig(A);    eval = eigs[0];    evec = eigs[1];    print('eigen values of A:\n', eval)
-    B = np.array([[2], [1.6]]);     B1 = np.array([[2], [1.6]])
-    Q = np.array([[6, 0], [0, 6]])
-    q=np.random.rand(2, 2);    Qrand = np.dot(q.transpose(), q)
+    case = '2D'
+    '''2D case '''
+    if case == '2D':
+        A = np.array([[-1,  2],[2.2,  1.7]]);     A1 = np.array([[-1,  2],[2.2,  1.7]])
+        # eigs = la.eig(A);    eval = eigs[0];    evec = eigs[1];    print('eigen values of A:\n', eval)
+        B = np.array([[2], [1.7]]);    B1 = np.array([[2], [1.7]])
+        Q = np.array([[5, 0], [0, 6]])
+        q = np.random.rand(2, 2);    Qrand = np.dot(q.transpose(), q)
+    '''3D case '''
+    if case == '3D':
+        A = np.array([[-1, 2, -1], [2.2, 1.7, -1], [0.5, 0.7, -1]]);        A1 = np.array([[-1, 2, -1], [2.2, 1.7, -1], [0.5, 0.7, -1]]);
+        eigs = la.eig(A);        eval = eigs[0];        evec = eigs[1];        print('eigen values of A:\n', eval)
+        B = np.array([[2], [1.6], [3]]);        B1 = np.array([[2], [1.6], [0.9]])
+        Q = np.array([[5, 0, 0], [0, 8, 0], [0, 0, 1]])
+        q = np.random.rand(3, 3);    Qrand = np.dot(q.transpose(), q)
+
+
 
     #K0,X,E = mtl.lqr(A,B, Qrand,1)
     K0, X, E = mtl.lqr(A, B, Q, 1)
@@ -94,7 +110,8 @@ if __name__== "__main__":
 
     #newtonKleinman(A, B, Q, K0, 10)
     #inverseReinfLearning1(A, B, Q, 10)
-    inverseReinfLearning(A, B, Q, 50, method='Ricc', debugMode=True)
+    algorithmProperties = {'updateP' : 'Ricc', 'alpha': 1.0, 'isQDiagonal' : True}
+    inverseReinfLearning(A, B, Q, 30, p =algorithmProperties, debugMode=True)
     #inverseReinfLearning_Lyap1(A,B,Q,50)
 
     print('Main finished')
