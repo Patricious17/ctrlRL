@@ -51,7 +51,7 @@ def inverseReinfLearning1(A,B,Qtrue,N):
 
 def inverseReinfLearning(A, B, Qtrue, N, p=None, debugMode = False):
     Popt, Eopt, Kopt = mtl.care(A, B, Qtrue, 1);    Aopt = A - B * Kopt
-    Q = Qtrue*1.2 +16*(1-0.5)*np.random.rand(Qtrue.shape[0],Qtrue.shape[1]); Q = 0.5*(Q+Q.transpose())
+    Q = Qtrue*1.2 +1*(1-0.5)*np.random.rand(Qtrue.shape[0],Qtrue.shape[1]); Q = 0.5*(Q+Q.transpose())
     print(Q)
     P, E, K = mtl.care(A, B, Q, 1)
     errorP = [];    errorP.append(la.norm(P - Popt));    errorQ = [];    errorQ.append(la.norm(Q - Qtrue));    errorK = [];    errorK.append(la.norm(K - Kopt))
@@ -110,7 +110,7 @@ if __name__== "__main__":
 
     #newtonKleinman(A, B, Q, K0, 10)
     #inverseReinfLearning1(A, B, Q, 10)
-    algorithmProperties = {'updateP' : 'Ricc', 'alpha': 1.0, 'isQDiagonal' : True}
+    algorithmProperties = {'updateP' : 'Ricc', 'alpha': 1.0, 'isQDiagonal' : False}
     inverseReinfLearning(A, B, Q, 30, p =algorithmProperties, debugMode=True)
     #inverseReinfLearning_Lyap1(A,B,Q,50)
 
