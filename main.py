@@ -51,10 +51,13 @@ def inverseReinfLearning1(A,B,Qtrue,N):
 
 def inverseReinfLearning(A, B, Qtrue, N, p=None, debugMode = False):
     Popt, Eopt, Kopt = mtl.care(A, B, Qtrue, 1);    Aopt = A - B * Kopt
-    Q = Qtrue*1.2 +1*(1-0.5)*np.random.rand(Qtrue.shape[0],Qtrue.shape[1]); Q = 0.5*(Q+Q.transpose())
+    Q = Qtrue*0.9 +0.1*(1-0.5)*np.random.rand(Qtrue.shape[0],Qtrue.shape[1]); Q = 0.5*(Q+Q.transpose())
     print(Q)
+    mtl.lyap(A+Aopt,Q)
     P, E, K = mtl.care(A, B, Q, 1)
     errorP = [];    errorP.append(la.norm(P - Popt));    errorQ = [];    errorQ.append(la.norm(Q - Qtrue));    errorK = [];    errorK.append(la.norm(K - Kopt))
+    eigsP = ([],[]); eigsP[0].append(la.norm(P)); eigsP[1].append(la.norm(P,2))
+    eigsQ = ([],[]); eigsQ[0].append(la.norm(Q)); eigsQ[1].append(la.norm(Q,2))
     Qi = None
 
     for i in range(N):
@@ -63,7 +66,10 @@ def inverseReinfLearning(A, B, Qtrue, N, p=None, debugMode = False):
         target_Qi = -(np.dot(P, Aopt) + np.dot(Aopt.transpose(), P) + la.multi_dot([P, B, B.transpose(), P]))
         Qi = ((1-p['alpha']**2)**0.5)*Qi + ((p['alpha'] ** 2)**0.5) * target_Qi if Qi is not None else target_Qi
         Qi = 0.5 * (Qi + Qi.transpose()) if not p['isQDiagonal'] else np.multiply(0.5 * (Qi + Qi.transpose()), np.eye(Qi.shape[0]))
-        assert (not debugMode) or ((la.eig(Qi)[0]) > 0).min(), 'Qi iterate is not positive definite!'
+        print("Q",i," eigenvalues are: ",la.eig(Qi)[0])
+        if not ((la.eig(Qi)[0]) >= 0).min():
+            pass
+        assert (not debugMode) or ((la.eig(Qi)[0]) >= 0).min(), 'Qi iterate is not positive definite!'
 
         if p['updateP'] == 'Lyap':
             Qlyap = Qi - la.multi_dot([P,B,B.transpose(),P])
@@ -75,17 +81,34 @@ def inverseReinfLearning(A, B, Qtrue, N, p=None, debugMode = False):
             P,E,K = mtl.care(A, B, Qi); assert (not debugMode) or ((la.eig(P)[0]) > 0).min(), 'P iterate is not positive definite!'
             pass
 
-        errorP.append(la.norm(P - Popt)); errorK.append(la.norm(K - Kopt)); errorQ.append(la.norm(Qi - Qtrue))
+        errorP.append(la.norm(P - Popt,'fro')); errorK.append(la.norm(K - Kopt,'fro')); errorQ.append(la.norm(Qi - Qtrue,'fro'))
+        eigsP[0].append(la.norm(P)); eigsP[1].append(la.norm(P, 2))
+        eigsQ[0].append(la.norm(Qi)); eigsQ[1].append(la.norm(Qi, 2))
 
-    plt.plot(errorP, 'o', label=r'$||P-\mathcal{P}||_F$', markersize=12); plt.plot(errorK, 'o', label=r'$||K-\mathcal{K}||_F$', markersize=12); plt.plot(errorQ, 'o', label=r'$||Q-\mathcal{Q}||_F$', markersize=12)
-    plt.xlabel('', fontsize=20)
-    plt.legend(ncol=2, loc='upper right', prop={'size': 30});    plt.show()
+
+    fig1, (ax1_1) = plt.subplots(nrows=1, ncols=1)
+    ax1_1.plot(errorP, 'o', label=r'$||P-\mathcal{P}||_F$', markersize=12)
+    ax1_1.plot(errorK, 'o', label=r'$||K-\mathcal{K}||_F$', markersize=12)
+    ax1_1.plot(errorQ, 'o', label=r'$||Q-\mathcal{Q}||_F$', markersize=12)
+    ax1_1.legend(ncol=2, loc='upper right', prop={'size': 30})
+
+    fig2, (ax2_1, ax2_2) = plt.subplots(nrows=2, ncols=1)
+    ax2_1.plot(eigsP[0], 'o', label=r'$||P||_F$', markersize=12)
+    ax2_1.plot(eigsP[1], 'o', label=r'$\lambda_{max}(P)$', markersize=12)
+    ax2_1.legend(ncol=1,loc='upper right', prop={'size': 30})
+
+    ax2_2.plot(eigsQ[0], 'o', label=r'$||Q||_F$', markersize=12)
+    ax2_2.plot(eigsQ[1], 'o', label=r'$\lambda_{max}(Q)$', markersize=12)
+    ax2_2.legend(ncol=1, loc='upper right', prop={'size': 30})
+
+    plt.show()
+
     pass
 
 
 if __name__== "__main__":
     print('Main executed')
-    case = '2D'
+    case = '3D'
     '''2D case '''
     if case == '2D':
         A = np.array([[-1,  2],[2.2,  1.7]]);     A1 = np.array([[-1,  2],[2.2,  1.7]])
